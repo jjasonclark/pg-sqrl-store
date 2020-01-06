@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+'use strict';
+
+const path = require('path');
+const fs = require('fs');
+const util = require('util');
+const readFile = util.promisify(fs.readFile);
+const pgp = require('pg-promise')();
+const logger = console;
+
+const sqlPath = path.resolve(__dirname, '..', 'sql', 'create.sql');
+const connectionString =
+  process.argv[2] || 'postgres://sqrl:sqrl@localhost:5432/sqrl';
+
+const applySqlFile = async () => {
+  try {
+    logger.info('Reading file %s', sqlPath);
+    const commands = (await readFile(sqlPath)).toString();
+    logger.info('Read migration file: %d bytes', commands.length);
+    logger.info('Connecting to %s', connectionString);
+    const db = pgp(connectionString);
+    const result = await db.none(commands);
+    logger.info('Apply success');
+    await pgp.end();
+    return true;
+  } catch (error) {
+    logger.error(error);
+  }
+  return false;
+};
+
+applySqlFile();
