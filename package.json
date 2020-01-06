@@ -10,6 +10,8 @@
   "version": "0.5.0",
   "main": "src/index.js",
   "files": [
+    "bin/db-migrate",
+    "CODE_OF_CONDUCT.md",
     "sql/create.sql"
   ],
   "scripts": {
