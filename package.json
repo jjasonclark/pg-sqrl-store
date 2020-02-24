@@ -9,6 +9,9 @@
   },
   "version": "0.5.0",
   "main": "src/index.js",
+  "bin": {
+    "db-migrate": "bin/db-migrate"
+  },
   "files": [
     "bin/db-migrate",
     "CODE_OF_CONDUCT.md",
