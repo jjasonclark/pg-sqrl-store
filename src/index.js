@@ -45,7 +45,8 @@ const formatNut = result => {
     ip: result.ip,
     hmac: result.hmac ? result.hmac.toString().trim() : null,
     created: result.created,
-    used: result.used,
+    idk: cleanString(result.idk),
+    ask: cleanString(result.ask),
     identified: result.identified,
     issued: result.issued,
     id: result.id,
@@ -60,9 +61,8 @@ class PgSqrlStore {
   }
 
   async createNut(it) {
-    // TODO: verify write
     const result = await this.db.oneOrNone(
-      'INSERT INTO nuts (initial,ip,user_id,hmac) VALUES (${initial},${ip},${user_id},${hmac}) RETURNING id,initial,ip,hmac,created,used,identified,issued,user_id',
+      'INSERT INTO nuts (initial,ip,idk,user_id,hmac,ask) VALUES (${initial},${ip},${idk},${user_id},${hmac},${ask}) RETURNING id,initial,ip,hmac,created,idk,identified,issued,ask,user_id',
       it
     );
     return formatNut(result);
@@ -70,7 +70,7 @@ class PgSqrlStore {
 
   async retrieveNut(id) {
     const result = await this.db.oneOrNone(
-      'SELECT id,initial,ip,hmac,created,used,identified,issued,user_id FROM nuts WHERE id = ${id}',
+      'SELECT id,initial,ip,hmac,created,idk,identified,issued,ask,user_id FROM nuts WHERE id = ${id}',
       { id }
     );
     return formatNut(result);
@@ -78,7 +78,7 @@ class PgSqrlStore {
 
   async updateNut(it) {
     const result = await this.db.oneOrNone(
-      'UPDATE nuts SET hmac=${hmac},used=${used},issued=${issued},identified=${identified},user_id=${user_id} WHERE id = ${id} RETURNING id,initial,ip,hmac,created,used,identified,issued,user_id',
+      'UPDATE nuts SET hmac=${hmac},idk=${idk},issued=${issued},identified=${identified},user_id=${user_id} WHERE id = ${id} RETURNING id,initial,ip,hmac,created,idk,identified,issued,ask,user_id',
       it
     );
     return formatNut(result);
@@ -103,16 +103,20 @@ class PgSqrlStore {
     return reorder(results.map(formatSqrl), idks);
   }
 
+  async retrieveSqrlByUser(id) {
+    const results = await this.db.oneOrNone(
+      'SELECT idk,user_id,suk,vuk,created,disabled,superseded FROM sqrl WHERE user_id = ${id}',
+      { id }
+    );
+    if (!results) {
+      return null;
+    }
+    return formatSqrl(results);
+  }
+
   async updateSqrl(it) {
     return await this.db.none(
       'UPDATE sqrl set disabled=${disabled},superseded=${superseded} WHERE idk = ${idk}',
-      it
-    );
-  }
-
-  async deleteSqrl(it) {
-    return await this.db.none(
-      'DELETE FROM sqrl WHERE user_id = ${user_id}',
       it
     );
   }
@@ -134,11 +138,6 @@ class PgSqrlStore {
       'SELECT id,created FROM users WHERE id = ${id}',
       { id }
     );
-  }
-
-  async deleteUser(id) {
-    // Delete user
-    await this.db.none('DELETE FROM users WHERE id = ${id}', { id });
   }
 }
 
