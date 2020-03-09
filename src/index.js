@@ -30,12 +30,20 @@ const cleanString = value => {
   return formatted;
 };
 
-const formatSqrl = result =>
-  Object.assign(result, {
+const formatSqrl = result => {
+  if (!result) {
+    return null;
+  }
+  return {
     idk: cleanString(result.idk),
     suk: cleanString(result.suk),
-    vuk: cleanString(result.vuk)
-  });
+    vuk: cleanString(result.vuk),
+    user_id: result.user_id,
+    created: result.created,
+    disabled: result.disabled,
+    superseded: result.superseded
+  };
+};
 
 const formatNut = result => {
   if (!result) {
@@ -43,7 +51,7 @@ const formatNut = result => {
   }
   return {
     ip: result.ip,
-    hmac: result.hmac ? result.hmac.toString().trim() : null,
+    hmac: cleanString(result.hmac),
     created: result.created,
     idk: cleanString(result.idk),
     ask: cleanString(result.ask),
@@ -85,9 +93,11 @@ class PgSqrlStore {
   }
 
   async createSqrl(it) {
-    return await this.db.oneOrNone(
-      'INSERT INTO sqrl (idk,user_id,suk,vuk,created) VALUES (${idk},${user_id},${suk},${vuk},${created}) RETURNING idk,user_id,suk,vuk,created,disabled,superseded',
-      it
+    return formatSqrl(
+      await this.db.oneOrNone(
+        'INSERT INTO sqrl (idk,user_id,suk,vuk,created) VALUES (${idk},${user_id},${suk},${vuk},${created}) RETURNING idk,user_id,suk,vuk,created,disabled,superseded',
+        it
+      )
     );
   }
 
@@ -96,11 +106,7 @@ class PgSqrlStore {
       'SELECT idk,user_id,suk,vuk,created,disabled,superseded FROM sqrl WHERE idk IN ($1:list)',
       [idks]
     );
-    if (!results) {
-      return null;
-    }
-
-    return reorder(results.map(formatSqrl), idks);
+    return reorder((results || []).map(formatSqrl), idks);
   }
 
   async retrieveSqrlByUser(id) {
@@ -108,14 +114,11 @@ class PgSqrlStore {
       'SELECT idk,user_id,suk,vuk,created,disabled,superseded FROM sqrl WHERE user_id = ${id}',
       { id }
     );
-    if (!results) {
-      return null;
-    }
     return formatSqrl(results);
   }
 
   async updateSqrl(it) {
-    return await this.db.none(
+    await this.db.none(
       'UPDATE sqrl set disabled=${disabled},superseded=${superseded} WHERE idk = ${idk}',
       it
     );
@@ -123,14 +126,9 @@ class PgSqrlStore {
 
   async createUser() {
     // Create an account
-    const user = await this.db.one(
-      'INSERT INTO users default VALUES RETURNING id'
+    return await this.db.one(
+      'INSERT INTO users default VALUES RETURNING id,created'
     );
-    if (!user) {
-      // something went wrong
-      return null;
-    }
-    return user;
   }
 
   async retrieveUser(id) {
